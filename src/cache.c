@@ -26,7 +26,7 @@ struct cache_obj
 bool test_val(cache_t cache, uint32_t pos, key_type key)
 {
     if (cache->table[pos] == NULL) return false;
-    else return cache->table[pos]->key == key;
+    else return *(cache->table[pos]->key) == key;
 }
 
 /**
@@ -74,18 +74,22 @@ void cache_set(cache_t cache, key_type key, val_type val, uint32_t val_size)
     }
     else {
         // If new to cache, allocate memory for values
-        cache->table[location]->value = malloc(sizeof(val_type));
+        cache->table[location]->value = malloc(val_size);
         cache->table[location]->key = malloc(sizeof(key_type));
     }
-    cache->table[location]->value = val;
-    cache->table[location]->key = key;
+    *(cache->table[location]->value) = val;
+    *(cache->table[location]->key) = key;
 }
 
 val_type cache_get(cache_t cache, key_type key, uint32_t *val_size)
 {
-    uint32_t location = cache_seek(cache, key);
-    if (location != -1) return cache->table[location]->value; // Hit
-    else return NULL; // Miss
+    int32_t location = cache_seek(cache, key);
+    if (location == -1) return NULL; // Miss
+    else { // Hit
+        val_type value = *(cache->table[location]->value);
+        assert(sizeof(*val_size) == sizeof(value));
+        return value;
+    }
 }
 
 void delete_entry(cache_t cache, uint32_t location) {
