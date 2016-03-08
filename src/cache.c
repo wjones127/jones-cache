@@ -3,80 +3,118 @@
 #include <stdlib.h>
 #include <math.h>
 #include <assert.h>
+#include <stdbool.h>
 #include "cache.h"
+
+// Hash table implementation adapted from https://gist.github.com/tonious/1377667
+
+struct entry_s
+{
+    key_type *key;
+    val_type *value;
+    //    struct entry_s *next;
+};
+    
+typedef struct entry_s entry_t;
 
 struct cache_obj
 {
-    uint32_t *capacity;
-    key_type *keys;
-    uint32_t *locations;
-    val_type *values;
+    uint32_t size;
+    struct entry_s **table;
 };
+
+bool test_val(cache_t cache, uint32_t pos, key_type key)
+{
+    if (cache->table[pos] == NULL) return false;
+    else return cache->table[pos]->key == key;
+}
 
 /**
  * Finds the location in the cache of a given key.
  */
-uint32_t cache_seek(cache_t cache, key_type key)
+int32_t cache_seek(cache_t cache, key_type key)
 {
-    uint32_t location = 0;
-    while (cache->values[location] != key && location < *(cache->capacity))
-        location++;
-    return location;
+    uint32_t key_index = 0;
+    while (test_val(cache, key_index, key) == false && key_index < cache->size)
+        key_index++;
+    if (key_index == cache->size) return -1;
+    else return key_index;
+}
+uint32_t find_space(cache_t cache)
+{
+    uint32_t pos = 0;
+    while (cache->table[pos] != NULL) pos++;
+    return pos;
 }
 
 cache_t create_cache(uint64_t maxmem)
 {
     struct cache_obj* cache = malloc(sizeof(struct cache_obj));
     assert(cache != NULL);
-    
-    // capacity is max # of key-values pairs that can be stored within maxmem
-    cache->capacity = (uint32_t*)(maxmem / (sizeof(key_type) + sizeof(val_type)));
-    cache->keys = (key_type*)calloc(*(cache->capacity), sizeof(key_type));
-    cache->locations = (uint32_t*)calloc(*(cache->capacity), sizeof(key_type));
-    cache->values = (val_type*)calloc(*(cache->capacity), sizeof(val_type));
+
+    uint32_t size = maxmem / sizeof(entry_t);
+
+    cache->table = malloc( sizeof(entry_t) * size );
+
+    for (uint32_t i = 0; i < size; i++)
+        cache->table[i] = NULL;
+
+    cache->size = size;
     
     return cache;
 }
 
 void cache_set(cache_t cache, key_type key, val_type val, uint32_t val_size)
 {
-    uint32_t location = cache_seek(cache, key);
-    // If it's not already in the cache
-    if (location != *(cache->capacity)) {
-        printf("allocating");
+    int32_t location = cache_seek(cache, key);
+
+    if (location == -1) {
+        // If it's not already in the cache, find a spot for it
+        location = find_space(cache);
     }
-    // If is is already in the cache
     else {
-        printf("overwriting");
+        // If new to cache, allocate memory for values
+        cache->table[location]->value = malloc(sizeof(val_type));
+        cache->table[location]->key = malloc(sizeof(key_type));
     }
-    
+    cache->table[location]->value = val;
+    cache->table[location]->key = key;
 }
 
 val_type cache_get(cache_t cache, key_type key, uint32_t *val_size)
 {
     uint32_t location = cache_seek(cache, key);
-    if (location != *(cache->capacity)) return cache->values[location]; // Hit
+    if (location != -1) return cache->table[location]->value; // Hit
     else return NULL; // Miss
+}
+
+void delete_entry(cache_t cache, uint32_t location) {
+    if (cache->table[location] != NULL) {
+        free(cache->table[location]->key);
+        free(cache->table[location]->value);
+        cache->table[location] = NULL;
+    }
 }
 
 void cache_delete(cache_t cache, key_type key)
 {
     uint32_t location = cache_seek(cache, key);
-    if (location != *(cache->capacity)) {
-        cache->keys[location] = 0;
-        cache->values[location] = 0;
-    }
+    delete_entry(cache, location);
 }
 
 uint64_t cache_space_used(cache_t cache)
 {
-    return sizeof(cache->values);
+    uint32_t size = 0;
+    for (uint32_t i = 0; i < cache->size; i++)
+        size += sizeof(cache->table[i]->value);
+    return size;
 }
 
 void destroy_cache(cache_t cache)
 {
-    free(cache->values);
-    free(cache->keys);
-    free(cache->capacity);
+    for (uint32_t i = 0; i < cache->size; i++)
+        delete_entry(cache, i);
+    free(cache->table);
+    free(cache);
 }
 
