@@ -1,5 +1,5 @@
-#include <stdint.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <math.h>
 #include <assert.h>
@@ -16,17 +16,26 @@ struct entry_s
 };
     
 typedef struct entry_s entry_t;
-
-struct cache_obj
+/*struct cache_obj
 {
     uint32_t size;
     struct entry_s **table;
-};
+};*/
+
 
 bool test_val(cache_t cache, uint32_t pos, key_type key)
 {
-    if (cache->table[pos] == NULL) return false;
-    else return *(cache->table[pos]->key) == key;
+    entry_t *entry = cache->table[pos];
+    if (entry == NULL) {
+        printf("it's blank\n");
+        return false;
+    }
+    else {
+
+        printf("Our key: %" PRIu8 "\n", *key);
+        printf("Entry key: %" PRIu8 "\n", **(entry->key));
+        return false; //*(cache->table[pos]->key) == key;
+    }
 }
 
 /**
@@ -35,8 +44,10 @@ bool test_val(cache_t cache, uint32_t pos, key_type key)
 int32_t cache_seek(cache_t cache, key_type key)
 {
     uint32_t key_index = 0;
+
     while (test_val(cache, key_index, key) == false && key_index < cache->size)
         key_index++;
+    
     if (key_index == cache->size) return -1;
     else return key_index;
 }
@@ -53,8 +64,10 @@ cache_t create_cache(uint64_t maxmem)
     assert(cache != NULL);
 
     uint32_t size = maxmem / sizeof(entry_t);
+    printf("%" PRIu32 "\n", size);
 
-    cache->table = malloc( sizeof(entry_t) * size );
+    cache->table = malloc( sizeof(entry_t *) * size );
+    assert(cache->table != NULL);
 
     for (uint32_t i = 0; i < size; i++)
         cache->table[i] = NULL;
@@ -64,26 +77,43 @@ cache_t create_cache(uint64_t maxmem)
     return cache;
 }
 
+entry_t *create_entry(key_type key, val_type val, uint32_t val_size)
+{
+    entry_t *new_entry;
+
+    new_entry = malloc(sizeof(entry_t));
+    assert(new_entry != NULL);
+
+    new_entry->key = malloc(sizeof(val_type) +1);
+    memcpy(new_entry->key, key, sizeof(val_type));
+
+    new_entry->value = malloc(val_size + 1);
+    memcpy(new_entry->value, val, val_size);
+
+    return new_entry;
+}
+
 void cache_set(cache_t cache, key_type key, val_type val, uint32_t val_size)
 {
     int32_t location = cache_seek(cache, key);
 
     if (location == -1) {
-        // If it's not already in the cache, find a spot for it
+        // If it's not already in the cache, find a spot and allocate memory
         location = find_space(cache);
+        printf("new location: %" PRIi32 "\n", location);
     }
-    else {
-        // If new to cache, allocate memory for values
-        cache->table[location]->value = malloc(val_size);
-        cache->table[location]->key = malloc(sizeof(key_type));
-    }
-    *(cache->table[location]->value) = val;
-    *(cache->table[location]->key) = key;
+
+    entry_t *entry = cache->table[location];
+    entry_t *new_entry;
+    new_entry = create_entry(key, val, val_size);
+    entry = new_entry;
+    assert(entry != NULL);
 }
 
 val_type cache_get(cache_t cache, key_type key, uint32_t *val_size)
 {
     int32_t location = cache_seek(cache, key);
+    printf("found location: %" PRIi32 "\n", location);
     if (location == -1) return NULL; // Miss
     else { // Hit
         val_type value = *(cache->table[location]->value);

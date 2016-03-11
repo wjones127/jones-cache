@@ -1,6 +1,11 @@
 #include <inttypes.h>
 
-struct cache_obj;
+struct cache_obj
+{
+    uint32_t size;
+    struct entry_s **table;
+};
+//struct cache_obj;
 typedef struct cache_obj *cache_t;
 
 typedef const uint8_t *key_type;
