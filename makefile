@@ -6,5 +6,5 @@ build_cache: src/cache.c
 build_test: src/cache.c src/test.c
 	gcc src/test.c src/cache.c -g -o build/cache_test
 
-test: build/cache_test
+test: build_test build/cache_test
 	build/cache_test 256

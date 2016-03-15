@@ -27,14 +27,15 @@ int main(int argc, char *argv[])
   
     cache_set(cache, key, value, *key_size);
 
+    // TEST: cache can retrieve entry
     val_type result;
     result = cache_get(cache, key, key_size);
-    //    assert(*result == 256);
+    assert(result == 256);
 
+    // TEST: cache returns NULL for entry not added
     key1val = 40;
     result = cache_get(cache, key, key_size);
-    //    assert(*result == NULL);
-    
+    assert(result == NULL);    
 
     destroy_cache(cache);
 }
