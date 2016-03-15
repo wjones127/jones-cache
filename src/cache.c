@@ -17,11 +17,11 @@ struct entry_s
 };
     
 typedef struct entry_s entry_t;
-/*struct cache_obj
+struct cache_obj
 {
     uint32_t size;
     struct entry_s **table;
-};*/
+};
 
 
 bool test_val(cache_t cache, uint32_t pos, key_type key)
@@ -134,8 +134,9 @@ void delete_entry(cache_t cache, uint32_t location) {
 
 void cache_delete(cache_t cache, key_type key)
 {
-    uint32_t location = cache_seek(cache, key);
-    delete_entry(cache, location);
+    int32_t location = cache_seek(cache, key);
+    if (location != -1)
+        delete_entry(cache, location);
 }
 
 uint64_t cache_space_used(cache_t cache)

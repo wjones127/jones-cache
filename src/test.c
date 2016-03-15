@@ -9,8 +9,6 @@ int main(int argc, char *argv[])
     uint64_t maxmem = strtol(argv[1], NULL, 0);
 
     cache_t cache = create_cache(maxmem);
-
-    assert(cache->table[1] == NULL && "table entries should start as NULL");
     
     // We use pointers to refer to keys.
     key_type key;
@@ -35,7 +33,17 @@ int main(int argc, char *argv[])
     // TEST: cache returns NULL for entry not added
     key1val = 40;
     result = cache_get(cache, key, key_size);
-    assert(result == NULL);    
+    assert(result == NULL);
+
+    // TEST: deleted entries don't show up
+    key1val = 29;
+    cache_delete(cache, key);
+    result = cache_get(cache, key, key_size);
+    assert(result == NULL);
+
+    // TEST: Deleting nonexistant entry does nothing
+    key1val = 20;
+    cache_delete(cache, key);
 
     destroy_cache(cache);
 }
