@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include <stdlib.h>
+#include "testing.h"
 #include "cache.h"
 
 int main(int argc, char *argv[])
@@ -28,22 +29,30 @@ int main(int argc, char *argv[])
     // TEST: cache can retrieve entry
     val_type result;
     result = cache_get(cache, key, key_size);
-    assert(result == 256);
+    test(result == 256, "Cache can retrieve an entry");
 
     // TEST: cache returns NULL for entry not added
     key1val = 40;
     result = cache_get(cache, key, key_size);
-    assert(result == NULL);
+    test(result == NULL, "Cache returns NULL for key not in cache");
 
     // TEST: deleted entries don't show up
     key1val = 29;
     cache_delete(cache, key);
     result = cache_get(cache, key, key_size);
-    assert(result == NULL);
+    test(result == NULL, "Deleted entries cannot be accessed");
 
     // TEST: Deleting nonexistant entry does nothing
     key1val = 20;
     cache_delete(cache, key);
+
+    // TEST: Getting updated items returns new value
+    cache_set(cache, key, value, *key_size);
+    value1 = 301;
+    cache_set(cache, key, value, *key_size);
+    result = cache_get(cache, key, key_size);
+    test(result == 301, "Cache returns newer value after an item is updated.");
+                       
 
     destroy_cache(cache);
 }
