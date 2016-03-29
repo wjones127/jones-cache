@@ -9,7 +9,7 @@ int main(int argc, char *argv[])
     assert(argc == 2 && "require one argument to run");
     uint64_t maxmem = strtol(argv[1], NULL, 0);
 
-    cache_t cache = create_cache(maxmem);
+    cache_t cache = create_cache(maxmem, NULL, NULL, NULL);
 
     // We use pointers to refer to keys.
     key_type key;

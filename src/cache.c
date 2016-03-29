@@ -26,13 +26,13 @@ struct cache_obj
 };
 
 // Hash function
-uint32_t hash( cache_obj *cache, key_type *key ) {
+uint32_t hash(cache_t cache, key_type *key ) {
 
     unsigned long int hashval;
     int i = 0;
 
     /* Convert our string to an integer */
-    while( hashval < ULONG_MAX && i < strlen( key ) ) {
+    while( i < strlen(key) ) {
         hashval = hashval << 8;
         hashval += key[ i ];
         i++;
@@ -119,14 +119,14 @@ entry_t *create_entry(key_type key, val_type val, uint32_t val_size)
 void cache_set(cache_t cache, key_type key, val_type val, uint32_t val_size)
 {
     uint32_t location = hash(cache, key);
-    entry_t prev = NULL;
-    entry_t node = cache->table[location];
-    while(strcmp(node->key, key) != 1  && node != NULL) {
+    entry_t *prev = NULL;
+    entry_t *node = cache->table[location];
+    while(strcmp(*node->key, key) != 1  && *node != NULL) {
         prev = node;
-        node = node->next;
+        node = *node->next;
     }
 
-    if (node = NULL) {
+    if (node == NULL) {
         // If it's not already in the cache, add it!
         entry_t new_node = create_entry(key, val, val_size);
         if (prev != NULL) {
