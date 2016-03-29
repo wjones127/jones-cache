@@ -13,7 +13,9 @@ struct entry_s
 {
     key_type *key;
     val_type *value;
-    //    struct entry_s *next;
+    struct entry_s *next;
+    struct entry_s *prev;
+    uint32_t size; // Size of entry, used for computing size
 };
     
 typedef struct entry_s entry_t;
@@ -23,6 +25,21 @@ struct cache_obj
     struct entry_s **table;
 };
 
+// Hash function
+uint32_t hash( cache_obj *cache, key_type *key ) {
+
+    unsigned long int hashval;
+    int i = 0;
+
+    /* Convert our string to an integer */
+    while( hashval < ULONG_MAX && i < strlen( key ) ) {
+        hashval = hashval << 8;
+        hashval += key[ i ];
+        i++;
+    }
+
+    return hashval % cache->size;
+}
 
 bool test_val(cache_t cache, uint32_t pos, key_type key)
 {
@@ -57,7 +74,7 @@ uint32_t find_space(cache_t cache)
     return pos;
 }
 
-cache_t create_cache(uint64_t maxmem)
+cache_t create_cache(uint64_t maxmem, hash_func hash, uint8_t* add, uint8_t* remove)
 {
     struct cache_obj* cache = malloc(sizeof(struct cache_obj));
     assert(cache != NULL);
@@ -92,35 +109,58 @@ entry_t *create_entry(key_type key, val_type val, uint32_t val_size)
     memcpy(value, val, val_size);
     
     new_entry->value = value;
+    new_entry->size = val_size;
+    new_entry->next = NULL;
+    new_entry->prev = NULL;
 
     return new_entry;
 }
 
 void cache_set(cache_t cache, key_type key, val_type val, uint32_t val_size)
 {
-    int32_t location = cache_seek(cache, key);
-
-    if (location == -1) {
-        // If it's not already in the cache, find a spot and allocate memory
-        location = find_space(cache);
-        printf("Added cache entry at location: %" PRIi32 "\n", location);
+    uint32_t location = hash(cache, key);
+    entry_t prev = NULL;
+    entry_t node = cache->table[location];
+    while(strcmp(node->key, key) != 1  && node != NULL) {
+        prev = node;
+        node = node->next;
     }
 
-    entry_t *new_entry;
-    new_entry = create_entry(key, val, val_size);
-    cache->table[location] = new_entry;
-    assert(cache->table[location] != NULL);
+    if (node = NULL) {
+        // If it's not already in the cache, add it!
+        entry_t new_node = create_entry(key, val, val_size);
+        if (prev != NULL) {
+            new_node->prev = prev;
+            prev->next = new_node;
+        }
+        else {
+            cache->table[location] = new_node;
+        }
+        printf("Added cache entry at location: %" PRIi32 "\n", location);
+    }
+    else {
+        // If it is in the cache, update the value
+        // Create entry for value
+        memcpy(node->value, val, val_size);
+        node->size = val_size;
+    }
+}
+
+val_type get_value(cache_t cache, key_type key)
+{
+    int32_t location = cache_seek(cache, key);
+    if (location == -1) return NULL;
+    else return cache->table[location]->value;
 }
 
 val_type cache_get(cache_t cache, key_type key, uint32_t *val_size)
 {
-    int32_t location = cache_seek(cache, key);
-    printf("found location: %" PRIi32 "\n", location);
-    if (location == -1) return NULL; // Miss
+    val_type value = get_value(cache, key);
+    //printf("found location: %" PRIi32 "\n", location);
+    if (value == NULL) return NULL; // Miss
     else { // Hit
-        val_type value = *(cache->table[location]->value);
-        assert(*val_size == sizeof(value) && "Retrieved value has wrong size");
-        return *(cache->table[location]->value);
+        *val_size = sizeof(*value);
+        return value;
     }
 }
 
@@ -128,6 +168,7 @@ void delete_entry(cache_t cache, uint32_t location) {
     if (cache->table[location] != NULL) {
         free(cache->table[location]->key);
         free(cache->table[location]->value);
+        free(cache->table[location]);
         cache->table[location] = NULL;
     }
 }

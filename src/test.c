@@ -10,7 +10,7 @@ int main(int argc, char *argv[])
     uint64_t maxmem = strtol(argv[1], NULL, 0);
 
     cache_t cache = create_cache(maxmem);
-    
+
     // We use pointers to refer to keys.
     key_type key;
     val_type value;
@@ -23,7 +23,7 @@ int main(int argc, char *argv[])
     key = &key1val;
     value = &value1;
     key_size = &key1_size;
-  
+
     cache_set(cache, key, value, *key_size);
 
     // TEST: cache can retrieve entry
@@ -52,7 +52,7 @@ int main(int argc, char *argv[])
     cache_set(cache, key, value, *key_size);
     result = cache_get(cache, key, key_size);
     test(result == 301, "Cache returns newer value after an item is updated.");
-                       
+
 
     destroy_cache(cache);
 }
