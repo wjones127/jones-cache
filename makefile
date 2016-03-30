@@ -7,5 +7,11 @@ build_cache: src/cache.c
 build_test: src/cache.c src/test.c
 	gcc src/test.c src/cache.c src/testing.c $(CFLAGS) -o build/cache_test
 
-test: build_test build/cache_test
-	build/cache_test 256
+build_lru_test: src/lru.c src/lru_tests.c
+	gcc src/lru.c src/lru_tests.c $(CFLAGS) -o build/lru_test
+
+test_cache: build_test build/cache_test
+	build/cache_test
+
+test_lru: build/lru_test
+	build/lru_test

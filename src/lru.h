@@ -28,4 +28,4 @@ uint8_t *lru_get(lru_t lru);
 /**
  * Bumps the given key to the back of the queue.
  */
-void lru_bump(lru_t lru);
+void lru_bump(lru_t lru, uint8_t *key);
