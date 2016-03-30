@@ -6,52 +6,46 @@
 
 int main(int argc, char *argv[])
 {
-    assert(argc == 2 && "require one argument to run");
-    uint64_t maxmem = strtol(argv[1], NULL, 0);
-
-    cache_t cache = create_cache(maxmem, NULL, NULL, NULL);
-
-    // We use pointers to refer to keys.
-    key_type key;
-    val_type value;
-    uint32_t *key_size;
-
+    cache_t cache = create_cache(256, NULL, NULL, NULL);
+    uint32_t val_size = 0;
+    
     // Create our first entry
-    uint8_t key1val = 29;
+    //uint8_t key1 = 29;
+    uint8_t *key1 = (uint8_t *) "hello";
     uint64_t value1 = 256;
-    uint32_t key1_size = sizeof(value1);
-    key = &key1val;
-    value = &value1;
-    key_size = &key1_size;
-
-    cache_set(cache, key, value, *key_size);
+    cache_set(cache, key1, &value1, sizeof(value1));
 
     // TEST: cache can retrieve entry
-    val_type result;
-    result = cache_get(cache, key, key_size);
-    test(result == 256, "Cache can retrieve an entry");
+    uint64_t *result = (uint64_t*)cache_get(cache, key1, &val_size);
+    test(*result == 256, "Cache can retrieve an entry");
+    test(val_size == sizeof(value1), "Cache sets val_size pointer on gets");
 
     // TEST: cache returns NULL for entry not added
-    key1val = 40;
-    result = cache_get(cache, key, key_size);
+    uint8_t *key2 = (uint8_t *) "world";
+    result = (uint64_t*)cache_get(cache, key2, &val_size);
     test(result == NULL, "Cache returns NULL for key not in cache");
+    test(val_size == 0, "Cache sets missing get key size to zero");
 
     // TEST: deleted entries don't show up
-    key1val = 29;
-    cache_delete(cache, key);
-    result = cache_get(cache, key, key_size);
+    cache_delete(cache, key1);
+    result = (uint64_t*)cache_get(cache, key1, &val_size);
     test(result == NULL, "Deleted entries cannot be accessed");
 
-    // TEST: Deleting nonexistant entry does nothing
-    key1val = 20;
-    cache_delete(cache, key);
+    // TEST: Deleting nonexistant entry does not change the size
+    uint64_t original_space_used = cache_space_used(cache);
+    uint8_t *key3 = (uint8_t*) "meh";
+    cache_delete(cache, key3);
+    uint64_t later_space_used = cache_space_used(cache);
+    test(original_space_used == later_space_used,
+         "Deleting nonexistant entries does not changes space used.");
 
     // TEST: Getting updated items returns new value
-    cache_set(cache, key, value, *key_size);
-    value1 = 301;
-    cache_set(cache, key, value, *key_size);
-    result = cache_get(cache, key, key_size);
-    test(result == 301, "Cache returns newer value after an item is updated.");
+    uint32_t value3 = 301;
+    cache_set(cache, key1, &value3, sizeof(value3));
+    uint32_t *result2 = (uint32_t*)cache_get(cache, key1, &val_size);
+    test(*result2 == 301, "Cache returns newer value after an item is updated.");
+    test(val_size == sizeof(value3),
+         "Cache updates value size of updated values");
 
 
     destroy_cache(cache);
