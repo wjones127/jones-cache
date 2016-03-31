@@ -23,6 +23,7 @@ typedef struct entry_s entry_t;
 struct cache_obj
 {
     uint32_t size;
+    uint64_t maxmem;
     struct entry_s **table;
     hash_func hash; // Has function, which can be user specified
     lru_t lru; // Object for storing LRU meta data
@@ -92,6 +93,7 @@ cache_t create_cache(uint64_t maxmem, hash_func hash)
     assert(cache->table[4] == NULL);
     
     cache->size = size;
+    cache->maxmem = maxmem;
 
     // Add hash function
     cache->hash = (hash != NULL) ? hash : default_hash;
@@ -125,6 +127,20 @@ entry_t *create_entry(key_type key, val_type val, uint32_t val_size)
     return new_entry;
 }
 
+void evict(cache_t cache, uint32_t val_size)
+{
+    printf("%" PRIu64 " out of %" PRIu64 " space used\n",
+           cache_space_used(cache), cache->maxmem);
+    // Check if we need to evict
+    if (val_size + cache_space_used(cache) <= cache->maxmem)
+        return;
+    // If we do, choose an item to evict
+    key_type evict_key = (key_type)lru_get(cache->lru);
+    cache_delete(cache, evict_key);
+    // Restart the process, until we have enough space
+    evict(cache, val_size);
+}
+
 void cache_set(cache_t cache, key_type key, val_type val, uint32_t val_size)
 {
     uint32_t location = hash_to_location(cache->hash, key, cache->size);
@@ -146,6 +162,17 @@ void cache_set(cache_t cache, key_type key, val_type val, uint32_t val_size)
 
     if (next == NULL) {
         // If it's not already in the cache, add it!
+        // but first do eviction
+        printf("Maxmem: %" PRIu64 "\n", cache->maxmem);
+        printf("Mem sued: %" PRIu64 "\n", cache_space_used(cache));
+        printf("Value size: %" PRIu32 "\n", val_size);
+        // Check if item fits in the cache at all
+        if  (val_size >= (cache->maxmem / 4)) {
+            printf("Item is larger than a quarter of the maximum memory. Will not add to cache");
+            return;
+        }
+        //evict(cache, val_size);
+        
         new_node = create_entry(key, val, val_size);
         if (prev != NULL && next == NULL) { // At the end
             new_node->prev = prev;
@@ -245,13 +272,18 @@ void cache_delete(cache_t cache, key_type key)
 
 uint64_t cache_space_used(cache_t cache)
 {
-    uint32_t size = 0;
+    uint64_t size = 0;
+    entry_t *current_node = NULL;
     // Iterate through table entries
     for (uint32_t i = 0; i < cache->size; i++) {
-        entry_t *current_node = cache->table[i];
+        current_node = cache->table[i];
+        if (current_node == NULL) continue;
+        size += current_node->size;
         // Iterate through linked list
-        while (current_node != NULL) 
+        while (current_node->next != NULL) {
+            current_node = current_node->next;
             size += current_node->size;
+        }
     }
     return size;
 }
