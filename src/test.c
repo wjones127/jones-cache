@@ -6,7 +6,7 @@
 
 int main(int argc, char *argv[])
 {
-    cache_t cache = create_cache(256, NULL, NULL, NULL);
+    cache_t cache = create_cache(256, NULL);
     uint32_t val_size = 0;
     
     // Create our first entry

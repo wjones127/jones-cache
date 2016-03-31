@@ -6,6 +6,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include "cache.h"
+#include "lru.h"
 
 // Hash table implementation adapted from https://gist.github.com/tonious/1377667
 
@@ -15,7 +16,7 @@ struct entry_s
     val_type *value;
     struct entry_s *next;
     struct entry_s *prev;
-    uint32_t size; // Size of entry, used for computing size
+    uint64_t size; // Size of entry, used for computing size
 };
     
 typedef struct entry_s entry_t;
@@ -23,25 +24,42 @@ struct cache_obj
 {
     uint32_t size;
     struct entry_s **table;
+    hash_func hash; // Has function, which can be user specified
+    lru_t lru; // Object for storing LRU meta data
 };
 
 // Hash function
-uint32_t hash(cache_t cache, char *key ) {
+/**
+ * Hash function based on Jenkin's one at a time hash
+ * See https://en.wikipedia.org/wiki/Jenkins_hash_function
+ */
+uint64_t default_hash(key_type *key ) {
 
-    uint32_t hashval;
+    char *tmp_key = NULL;
+    tmp_key = (char *)key;
+    uint64_t hashval = 0;
     uint32_t i = 0;
 
     /* Convert our string to an integer */
-    while( i < strlen(key) ) {
-        hashval = hashval << 8;
-        hashval += key[i];
+    while( i < strlen(tmp_key) && hashval < UINT64_MAX ) {
+        hashval += tmp_key[i];
+        hashval += hashval << 10;
+        hashval ^= hashval >> 6;
         i++;
     }
+    hashval += hashval << 3;
+    hashval ^= hashval >> 11;
+    hashval += hashval << 15;
 
-    printf("Hashed the key %" PRIu8 " to the hashed value %" PRIu32 ".\n",
-           *(uint8_t*)key, hashval % cache->size);
+    printf("Hashed the key %" PRIu8 " to the hashed value %" PRIu64 ".\n",
+           *(uint8_t*)key, hashval);
     
-    return hashval % cache->size;
+    return hashval;
+}
+
+uint64_t hash_to_location(hash_func hash, key_type key, uint32_t cache_size)
+{
+    return hash(key) % cache_size;
 }
 
 bool test_val(cache_t cache, uint32_t pos, key_type key)
@@ -57,7 +75,7 @@ bool test_val(cache_t cache, uint32_t pos, key_type key)
     }
 }
 
-cache_t create_cache(uint64_t maxmem, hash_func hash, uint8_t* add, uint8_t* remove)
+cache_t create_cache(uint64_t maxmem, hash_func hash)
 {
     struct cache_obj* cache = malloc(sizeof(struct cache_obj));
     assert(cache != NULL);
@@ -74,6 +92,12 @@ cache_t create_cache(uint64_t maxmem, hash_func hash, uint8_t* add, uint8_t* rem
     assert(cache->table[4] == NULL);
     
     cache->size = size;
+
+    // Add hash function
+    cache->hash = (hash != NULL) ? hash : default_hash;
+
+    // Create LRU object
+    cache->lru = lru_create();
     
     return cache;
 }
@@ -103,11 +127,14 @@ entry_t *create_entry(key_type key, val_type val, uint32_t val_size)
 
 void cache_set(cache_t cache, key_type key, val_type val, uint32_t val_size)
 {
-    uint32_t location = hash(cache, (char *)key);
+    uint32_t location = hash_to_location(cache->hash, key, cache->size);
     printf("Looking at location %" PRIu32 "\n", location);
     entry_t *prev = NULL;
     entry_t *next = NULL;
     entry_t *new_node = NULL;
+
+    // Bump the value in the LRU
+    lru_bump(cache->lru, (uint8_t*)key);
     
     next = cache->table[location];
     
@@ -127,7 +154,7 @@ void cache_set(cache_t cache, key_type key, val_type val, uint32_t val_size)
         else {
             cache->table[location] = new_node;
         }
-        printf("Added cache entry at location %" PRIi32 " with size %" PRIu32 " \n", location, new_node->size);
+        printf("Added cache entry at location %" PRIi32 " with size %" PRIu64 " \n", location, new_node->size);
     }
     else {
         // If it is in the cache, update the value
@@ -140,7 +167,7 @@ void cache_set(cache_t cache, key_type key, val_type val, uint32_t val_size)
 
 entry_t *get_entry(cache_t cache, key_type key)
 {
-    uint32_t location = hash(cache, (char *)key);
+    uint32_t location = hash_to_location(cache->hash, key, cache->size);
     printf("Getting value at location: %" PRIu32 "\n", location);
     entry_t *node = NULL;
     node = cache->table[location];
@@ -155,6 +182,10 @@ entry_t *get_entry(cache_t cache, key_type key)
 val_type cache_get(cache_t cache, key_type key, uint32_t *val_size)
 {
     entry_t *entry = get_entry(cache, key);
+
+    // Bump entry in cache
+    lru_bump(cache->lru, (uint8_t*)key);
+    
     if (entry == NULL) { // Miss
         printf("Miss!\n");
         *val_size = 0;
@@ -169,11 +200,14 @@ val_type cache_get(cache_t cache, key_type key, uint32_t *val_size)
 
 void cache_delete(cache_t cache, key_type key)
 {
-    uint32_t location = hash(cache, (char*)key);
+    uint32_t location = hash_to_location(cache->hash, key, cache->size);
     entry_t *prev = NULL;
     entry_t *current = NULL;
     entry_t *next = NULL;
 
+    // Remove entry in LRU
+    lru_remove(cache->lru, (uint8_t*)key);
+    
     current = cache->table[location];
     
     while(current != NULL && current->key != NULL &&
@@ -241,6 +275,9 @@ void destroy_cache(cache_t cache)
         }
     }
     free(cache->table);
+
+    lru_destroy(cache->lru);
+    
     free(cache);
 }
 

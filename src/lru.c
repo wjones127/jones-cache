@@ -91,11 +91,13 @@ void lru_remove(lru_t lru, uint8_t *key)
     struct lru_node *current = NULL;
     if (lru->first == NULL) return; // LRU is empty, so just exit
     current = lru->first; // Start at first, because lru_get uses this method
-    while (strcmp((const char*)current->key, (const char*)key) != 0) {
+    while (strcmp((const char*)current->key, (const char*)key) != 0 &&
+           current->next != NULL) {
         current = current->next;
     }
     // Now remove the key
-    if (current == NULL) return; // The key is not present
+    if (strcmp((const char*)current->key, (const char*)key) != 0)
+        return; // The key is not present
     
     struct lru_node *next = NULL;
     struct lru_node *prev = NULL;
