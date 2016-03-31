@@ -26,6 +26,11 @@ void lru_destroy(lru_t lru);
 uint8_t *lru_get(lru_t lru);
 
 /**
- * Bumps the given key to the back of the queue.
+ * Bumps the given key to the back of the queue. This also is how we add items.
  */
 void lru_bump(lru_t lru, uint8_t *key);
+
+/**
+ * Removes an item from the queue.
+ */
+void lru_remove(lru_t lru, uint8_t *key);
