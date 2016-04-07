@@ -253,7 +253,7 @@ void cache_set(cache_t cache, key_type key, val_type val, uint32_t val_size)
 
         // Check if item fits in the cache at all
         if  (val_size >= (cache->maxmem / 4)) {
-            printf("Item is larger than a quarter of the maximum memory. Will not add to cache");
+            printf("Warning: item is larger than a quarter of the maximum memory. Will not add to cache.\n");
             return;
         }
         evict(cache, val_size);
