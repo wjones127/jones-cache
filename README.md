@@ -7,7 +7,9 @@ My first implementation was simply a cache with an array of structs, each with k
 
 ## 2. Testing
 
-I created a small testing function in `testing.c`. My tests are pretty basic here, just making sure each of the functions are working.
+I created a small testing function in `testing.c`, which gives a nice format for printing tests: It prints a bold green check mark next to tests that pass and a bold red ex-mark next to tests that fail.
+
+My tests are pretty basic here, just making sure each of the functions are working. The cache resizing isn't really tested in these tests, because it's not really an exposed part of the API, but 
 
 ## 3. Performance
 
@@ -19,8 +21,10 @@ I made the cache use a doubly-linked list for each bin in the hash table to hand
 
 ## 5. Dynamic Resizing
 
-Unfortunately I didn't get to implementing resizing :weary:.
+The resizing is done by creating a new hash table double the size, taking each from the old hash table and putting it into a newly hashed position in the new table. This is a pretty expensive operation right now, though it may not happen that often. In the case of a hash, I would expect that the typical workload will grow the cache in the beginning, but woud keep the size stable for a while after. The cache can only grow; it never shrinks.
 
 ## 6. Eviction Policy
 
 I implemented LRU as a simple linked list queue. The last recently used item is taken from the top of the queue and items can be bumped to the bottom of the queue. This uses O(n) space and getting is O(1), but it takes O(n) time to bump something to top of the queue. In hindsight, this isn't the greatest idea, because bumping—which needs to happen whenever we get from the cache—should be more common than getting—which happens whenever we need to evict. 
+
+The upshot of this implementation is it is very modular, making it easy to test and switch out for anthor implementation without affecting the cache itself much.
