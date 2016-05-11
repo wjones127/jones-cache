@@ -112,6 +112,10 @@ void handler_main(evhtp_request_t *req, void *a)
        respond_not_found(req);
 }
 
+/*
+  PUT /k/v: Set entry k with value v
+  Test w/: curl -i -X PUT localhost:8081/4/32f4
+*/
 void handler_set(evhtp_request_t *req, void *a)
 {
     if (evhtp_request_get_method(req) != htp_method_PUT) {
@@ -124,6 +128,10 @@ void handler_set(evhtp_request_t *req, void *a)
     evhtp_send_reply(req, EVHTP_RES_OK); // Response code is 2nd arg    
 }
 
+/*
+  POST /shutdown: Shutdown server
+  Test w/: curl -i -X POST localhost:8081/shutdown
+*/
 void handler_shutdown(evhtp_request_t *req, void *a)
 {
     if (evhtp_request_get_method(req) != htp_method_POST) {
@@ -136,6 +144,10 @@ void handler_shutdown(evhtp_request_t *req, void *a)
     evhtp_send_reply(req, EVHTP_RES_OK); // Response code is 2nd arg    
 }
 
+/*
+  POST /memsize/value: Start server with memsize of value
+  Test w/: curl -i -X POST localhost:8081/memsize/4302
+*/
 void handler_setup(evhtp_request_t *req, void *a)
 {
     if (evhtp_request_get_method(req) != htp_method_POST) {
