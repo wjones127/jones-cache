@@ -10,6 +10,9 @@ build/cache_test: src/cache.c src/test.c src/lru.c
 build/lru_test: src/lru.c src/lru_tests.c src/lru.h
 	gcc src/lru.c src/lru_tests.c $(CFLAGS) -o build/lru_test
 
+build/network_test: src/mongoose.c src/server.c
+	gcc src/server.c src/mongoose.c /usr/local/lib/libevhtp.a $(CFLAGS) -L. -levent -levent_core -o build/network_test
+
 test_cache: build/cache_test
 	build/cache_test
 
