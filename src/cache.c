@@ -362,6 +362,8 @@ void cache_delete(cache_t cache, key_type key)
     free(current->value);
     free(current->key);
     free(current);
+
+    cache = NULL;
 }
 
 uint64_t cache_space_used(cache_t cache)

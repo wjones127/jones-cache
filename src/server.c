@@ -84,6 +84,11 @@ void handler_header(evhtp_request_t *req, void *a)
 */
 void handler_get(evhtp_request_t *req, void *a)
 {
+    if (the_cache == NULL) {
+        respond_not_found(req);
+        return;
+    }
+        
     add_std_headers(req);
 
     char *path = req->uri->path->full;
@@ -116,7 +121,21 @@ void handler_get(evhtp_request_t *req, void *a)
 */
 void handler_delete(evhtp_request_t *req, void *a)
 {
+    if (the_cache == NULL) {
+        respond_not_found(req);
+        return;
+    }
+
     add_std_headers(req);
+
+    char *path = req->uri->path->full;
+    
+    // Find place where last non-slash character is
+    uint16_t i = strlen(path) - 1;
+    while ((int)path[i-1] != slash) i--;
+    uint8_t *key_string = &path[i];
+
+    cache_delete(the_cache, key_string);
 
     evhtp_send_reply(req, EVHTP_RES_OK); // Response code is 2nd arg
 }
@@ -139,7 +158,8 @@ void handler_main(evhtp_request_t *req, void *a)
 */
 void handler_set(evhtp_request_t *req, void *a)
 {
-    if (evhtp_request_get_method(req) != htp_method_PUT) {
+    if (evhtp_request_get_method(req) != htp_method_PUT ||
+        the_cache == NULL) {
         respond_not_found(req);
         return;
     }
@@ -172,11 +192,14 @@ void handler_set(evhtp_request_t *req, void *a)
 */
 void handler_shutdown(evhtp_request_t *req, void *a)
 {
-    if (evhtp_request_get_method(req) != htp_method_POST) {
+    if (evhtp_request_get_method(req) != htp_method_POST ||
+            the_cache == NULL) {
         respond_not_found(req);
         return;
     }
 
+    destroy_cache(the_cache);
+    
     add_std_headers(req);
 
     evhtp_send_reply(req, EVHTP_RES_OK); // Response code is 2nd arg    
