@@ -1,10 +1,3 @@
-/*#include <stdio.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <stdbool.h>
-#include <string.h>*/
-
-//#include "cache.h"
 #include <event2/event.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -12,6 +5,13 @@
 #include <stdint.h>
 #include <errno.h>
 #include "evhtp.h"
+#include "cache.h"
+
+// The cache
+cache_t the_cache;
+
+const char *slash_str = "/";
+uint8_t slash;
 
 void testcb(evhtp_request_t * req, void * a)
 {
@@ -86,6 +86,27 @@ void handler_get(evhtp_request_t *req, void *a)
 {
     add_std_headers(req);
 
+    char *path = req->uri->path->full;
+    
+    // Find place where last non-slash character is
+    uint16_t i = strlen(path) - 1;
+    while ((int)path[i-1] != slash) i--;
+    uint8_t *key_string = &path[i];
+
+    uint32_t val_size = 0;
+    
+    uint8_t *result = (uint8_t *)cache_get(the_cache, key_string, &val_size);
+
+    if (result == NULL) {
+        respond_not_found(req);
+        return;
+    }
+
+    char *output_json[5];
+    sprintf(output_json, "{ key: %s, value: %s }", key_string, result);
+
+    evbuffer_add(req->buffer_out, output_json, strlen((char*)output_json));    
+
     evhtp_send_reply(req, EVHTP_RES_OK); // Response code is 2nd arg
 }
 
@@ -123,6 +144,23 @@ void handler_set(evhtp_request_t *req, void *a)
         return;
     }
 
+    char *path = req->uri->path->full;
+    
+    // Find place where last non-slash character is
+    uint16_t i = strlen(path) - 1;
+    while ((int)path[i-1] != slash) i--;
+    uint8_t *value_string = (uint8_t *)&path[i];
+    // Make slash a terminating string
+    i--;
+    path[i] = 0;
+    i--;
+    // Find beginning of next uri section
+    while((int)path[i-1] != slash) i--;
+    uint8_t *key_string = (uint8_t *)&path[i];
+
+    cache_set(the_cache, key_string, value_string,
+              strlen((char*)value_string) * sizeof(uint8_t));
+    
     add_std_headers(req);
 
     evhtp_send_reply(req, EVHTP_RES_OK); // Response code is 2nd arg    
@@ -155,6 +193,16 @@ void handler_setup(evhtp_request_t *req, void *a)
         return;
     }
 
+    char *size = req->uri->path->full;
+
+    // Find place where last non-slash character is
+    uint16_t i = strlen(size) - 1;
+    while ((int)size[i-1] != slash) i--;
+    size = &size[i];
+
+    // Create the cache
+    the_cache = create_cache(atoi(size), NULL);
+    
     add_std_headers(req);
 
     evhtp_send_reply(req, EVHTP_RES_OK); // Response code is 2nd arg    
@@ -163,6 +211,8 @@ void handler_setup(evhtp_request_t *req, void *a)
 
 int main(int argc, char ** argv)
 {
+    slash = (uint8_t)slash_str[0];
+    
     evbase_t * evbase = event_base_new();
     evhtp_t  * htp    = evhtp_new(evbase, NULL);
 
