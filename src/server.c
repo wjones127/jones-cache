@@ -202,7 +202,9 @@ void handler_shutdown(evhtp_request_t *req, void *a)
     
     add_std_headers(req);
 
-    evhtp_send_reply(req, EVHTP_RES_OK); // Response code is 2nd arg    
+    evhtp_send_reply(req, EVHTP_RES_OK); // Response code is 2nd arg
+
+    abort();
 }
 
 /*
@@ -213,6 +215,11 @@ void handler_setup(evhtp_request_t *req, void *a)
 {
     if (evhtp_request_get_method(req) != htp_method_POST) {
         respond_not_found(req);
+        return;
+    }
+
+    if (the_cache != NULL) {
+        evhtp_send_reply(req, EVHTP_RES_SERVUNAVAIL); // 503 Error: Service Unavailable
         return;
     }
 
